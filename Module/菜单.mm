@@ -57,7 +57,7 @@ OverlayView *overlayView;
     ImGui::SetNextWindowSize({1280, 800}, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos({172, 172}, ImGuiCond_FirstUseEver);
     //窗口
-    if (ImGui::Begin("云峰开源", &self.moduleControl->menuStatus, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize)) {
+    if (ImGui::Begin("ＡＲＭ", &self.moduleControl->menuStatus, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize)) {
         ImGuiContext& g = *GImGui;
         if(g.NavWindow == NULL){
             self.moduleControl->menuStatus = !self.moduleControl->menuStatus;
@@ -112,7 +112,7 @@ OverlayView *overlayView;
     ImGui::BulletColorText(ImColor(153, 204, 255).Value, "系统公告");
     
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(32.0f, 32.0f));
-    ImGui::TextWrapped("%s", "云峰开源 QQ：970886856");
+    ImGui::TextWrapped("%s", "ＩＯＳ - ＡＲＭ");
     ImGui::PopStyleVar();
     
  ImGui::BulletColorText(ImColor(153,204,255).Value, "控制开关");
@@ -352,7 +352,7 @@ OverlayView *overlayView;
 
 -(void) showsystemproclamation {
     ImGui::BulletColorText(ImColor(153, 204, 255).Value, "系统公告");
-    ImGui::TextWrapped("%s", "云峰开源qq：970886856");
+    ImGui::TextWrapped("%s", "ＡＲＭ - ＡＲＭ");
 }
 
 -(void)readIniConfig{
