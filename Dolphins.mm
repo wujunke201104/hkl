@@ -64,11 +64,11 @@ void (*AddControllerRollInput)(void *actot, float val);
 void (*AddControllerPitchInput)(void *actot, float val);
 
 static long gWorld(){
-    return reinterpret_cast<long(__fastcall*)(long)>((long)_dyld_get_image_vmaddr_slide(0) + 0x1027a3b50)((long)_dyld_get_image_vmaddr_slide(0) + 0x1097b8f90);
+    return reinterpret_cast<long(__fastcall*)(long)>((long)_dyld_get_image_vmaddr_slide(0) + 0x10282a858)((long)_dyld_get_image_vmaddr_slide(0) + 0x10992a6e0);
 }
 
 static long gName(){
-    return  reinterpret_cast<long(__fastcall*)(long)>((long)_dyld_get_image_vmaddr_slide(0) + 0x1043c2eec)((long)_dyld_get_image_vmaddr_slide(0) + 0x1093be350);
+    return  reinterpret_cast<long(__fastcall*)(long)>((long)_dyld_get_image_vmaddr_slide(0) + 0x1044dd6ec)((long)_dyld_get_image_vmaddr_slide(0) + 0x10953ecd0);
 }
 
 struct {
