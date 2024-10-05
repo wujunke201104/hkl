@@ -8,50 +8,71 @@ on:
 
 jobs:
   build:
-    name: Build and analyze default scheme using xcodebuild command
+    name: Build and Analyze dylib using xcodebuild
     runs-on: macos-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install xcpretty
+      - name: Install Dependencies
         run: |
-          gem install xcpretty  # 确保安装 xcpretty
-          
-      - name: Set Default Scheme
-        id: set_scheme  # 给这个步骤一个 ID
+          sudo gem install cocoapods xcpretty
+          pod install  # 如果使用 CocoaPods
+
+      - name: Set Scheme
+        id: set_scheme
         run: |
-          scheme_list=$(xcodebuild -list -json | tr -d "\n")
-          default=$(echo $scheme_list | ruby -e "require 'json'; puts JSON.parse(STDIN.gets)['project']['targets'][0]")
-          echo "scheme=$default" >> $GITHUB_ENV  # 输出到环境变量
-          echo Using default scheme: $default
+          schemes=$(xcodebuild -list -json | jq -r '.project.schemes[]')
+          scheme=$(echo "$schemes" | grep 'Dylib' | head -n 1)
+          if [ -z "$scheme" ]; then
+            echo "No suitable scheme found."
+            exit 1
+          fi
+          echo "scheme=$scheme" >> $GITHUB_ENV
+          echo "Using scheme: $scheme"
 
       - name: Build
         env:
-          scheme: ${{ env.scheme }}  # 使用环境变量获取方案
+          scheme: ${{ env.scheme }}
         run: |
           echo "Current directory contents:"
           ls -la
-          echo "Using scheme: $scheme"
-          
-          # 检查并设置文件类型和文件名
-          if [ "$scheme" = "default" ]; then scheme=$(cat default); fi
-          if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then 
-            filetype_parameter="workspace" && file_to_build="`ls -A | grep -i \\.xcworkspace\$`"; 
-          else 
-            filetype_parameter="project" && file_to_build="`ls -A | grep -i \\.xcodeproj\$`"; 
-          fi
-          file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
-          
-          echo "File to build: $file_to_build"
-          
-          # 执行构建和分析
-          xcodebuild clean build analyze -scheme "$scheme" -"$filetype_parameter" "$file_to_build" | xcpretty
 
-      - name: Upload Build Artifacts
-        if: success()  # 仅在构建成功时上传
+          # Determine project type
+          if [ -n "$(ls *.xcworkspace 2>/dev/null)" ]; then
+            workspace=$(ls *.xcworkspace)
+            filetype_parameter="-workspace"
+            file_to_build="$workspace"
+          elif [ -n "$(ls *.xcodeproj 2>/dev/null)" ]; then
+            project=$(ls *.xcodeproj)
+            filetype_parameter="-project"
+            file_to_build="$project"
+          else
+            echo "No .xcworkspace or .xcodeproj file found."
+            exit 1
+          fi
+
+          echo "File to build: $file_to_build"
+          echo "Using scheme: $scheme"
+
+          # Clean, build, and analyze
+          xcodebuild clean build analyze \
+            -scheme "$scheme" \
+            $filetype_parameter "$file_to_build" \
+            -configuration Release \
+            | xcpretty
+
+          # Locate the .dylib file
+          dylib_path=$(find . -name "*.dylib" | head -n 1)
+          if [ -z "$dylib_path" ]; then
+            echo "No .dylib file found after build."
+            exit 1
+          fi
+          echo "dylib_path=$dylib_path" >> $GITHUB_ENV
+
+      - name: Upload .dylib Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: build-artifact  # 上传的产物名称
-          path: build/iphoneos/Build/Products/Release-iphoneos/libDolphins.dylib  # 上传文件的路径
+          name: my-dylib
+          path: ${{ env.dylib_path }}
