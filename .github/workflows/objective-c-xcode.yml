@@ -1,4 +1,4 @@
-name: Xcode - Build and Release iOS Dynamic Library
+name: Xcode - Build and Analyze
 
 on:
   push:
@@ -8,97 +8,50 @@ on:
 
 jobs:
   build:
-    name: Build and Release iOS Dynamic Library
+    name: Build and analyze default scheme using xcodebuild command
     runs-on: macos-latest
 
     steps:
-      # 1. 检出代码
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. 安装 xcpretty
       - name: Install xcpretty
         run: |
-          gem install xcpretty
-
-      # 3. 设置默认 Scheme
+          gem install xcpretty  # 确保安装 xcpretty
+          
       - name: Set Default Scheme
-        id: set_scheme
+        id: set_scheme  # 给这个步骤一个 ID
         run: |
           scheme_list=$(xcodebuild -list -json | tr -d "\n")
-          default=$(echo $scheme_list | ruby -e "require 'json'; data = JSON.parse(STDIN.gets); puts data['project']['targets'][0]")
-          echo "scheme=$default" >> $GITHUB_ENV
-          echo "Using default scheme: $default"
+          default=$(echo $scheme_list | ruby -e "require 'json'; puts JSON.parse(STDIN.gets)['project']['targets'][0]")
+          echo "scheme=$default" >> $GITHUB_ENV  # 输出到环境变量
+          echo Using default scheme: $default
 
-      # 4. 构建动态库
-      - name: Build Dynamic Library
+      - name: Build
         env:
-          SCHEME: ${{ env.scheme }}
+          scheme: ${{ env.scheme }}  # 使用环境变量获取方案
         run: |
-          echo "Building Dynamic Library for scheme: $SCHEME"
+          echo "Current directory contents:"
+          ls -la
+          echo "Using scheme: $scheme"
+          
+          # 检查并设置文件类型和文件名
+          if [ "$scheme" = "default" ]; then scheme=$(cat default); fi
+          if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then 
+            filetype_parameter="workspace" && file_to_build="`ls -A | grep -i \\.xcworkspace\$`"; 
+          else 
+            filetype_parameter="project" && file_to_build="`ls -A | grep -i \\.xcodeproj\$`"; 
+          fi
+          file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
+          
+          echo "File to build: $file_to_build"
+          
+          # 执行构建和分析
+          xcodebuild clean build analyze -scheme "$scheme" -"$filetype_parameter" "$file_to_build" | xcpretty
 
-          # 创建输出目录
-          mkdir -p build
-
-          # 构建 iOS 设备（arm64）
-          xcodebuild build \
-            -scheme "$SCHEME" \
-            -configuration Release \
-            -sdk iphoneos \
-            -derivedDataPath build/iphoneos \
-            BUILD_DIR=build/iphoneos \
-            BUILD_LIBRARIES_FOR_DISTRIBUTION=YES | xcpretty
-
-          # 构建 iOS 模拟器（x86_64 和 arm64）
-          xcodebuild build \
-            -scheme "$SCHEME" \
-            -configuration Release \
-            -sdk iphonesimulator \
-            -derivedDataPath build/iphonesimulator \
-            BUILD_DIR=build/iphonesimulator \
-            BUILD_LIBRARIES_FOR_DISTRIBUTION=YES | xcpretty
-
-          # 合并不同架构的 dylib 为一个通用的 dylib（使用 lipo）
-          cp build/iphoneos/Build/Products/Release-iphoneos/lib${SCHEME}.dylib build/
-          cp build/iphonesimulator/Build/Products/Release-iphonesimulator/lib${SCHEME}.dylib build/
-
-          lipo -create -output build/lib${SCHEME}.dylib build/lib${SCHEME}.dylib build/lib${SCHEME}.dylib
-
-          echo "Built lib${SCHEME}.dylib successfully."
-
-      # 5. 压缩构建产物
-      - name: Compress Build Artifacts
-        run: |
-          cd build
-          zip -r lib${SCHEME}.dylib.zip lib${SCHEME}.dylib
-          cd ..
-
-      # 6. 上传构建产物作为工作流的构建产物
       - name: Upload Build Artifacts
+        if: success()  # 仅在构建成功时上传
         uses: actions/upload-artifact@v3
         with:
-          name: DynamicLibrary
-          path: build/lib${SCHEME}.dylib.zip
-
-      # 7. 创建 Release
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v1.0.${{ github.run_number }}
-          release_name: Release v1.0.${{ github.run_number }}
-          draft: false
-          prerelease: false
-
-      # 8. 上传 Release 资产
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: build/lib${SCHEME}.dylib.zip
-          asset_name: lib${SCHEME}.dylib.zip
-          asset_content_type: application/zip
+          name: build-artifact  # 上传的产物名称
+          path: build/iphoneos/Build/Products/Release-iphoneos/libDolphins.dylib  # 上传文件的路径
