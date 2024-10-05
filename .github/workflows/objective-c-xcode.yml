@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Build and Analyze Default Scheme Using xcodebuild Command
+    name: Build and analyze default scheme using xcodebuild command
     runs-on: macos-latest
 
     steps:
@@ -23,9 +23,13 @@ jobs:
         id: set_scheme  # 给这个步骤一个 ID
         run: |
           scheme_list=$(xcodebuild -list -json | tr -d "\n")
-          default=$(echo $scheme_list | ruby -e "require 'json'; puts JSON.parse(STDIN.gets)['project']['targets'][0]")
+          default=$(echo $scheme_list | ruby -e "require 'json'; puts JSON.parse(STDIN.gets)['project']['schemes'][0]")
           echo "scheme=$default" >> $GITHUB_ENV  # 输出到环境变量
           echo "Using default scheme: $default"
+
+      - name: Install CocoaPods
+        run: |
+          pod install  # 如果使用 CocoaPods，安装依赖
 
       - name: Build
         env:
@@ -36,13 +40,13 @@ jobs:
           echo "Using scheme: $scheme"
           
           # 检查并设置文件类型和文件名
-          if [ "$scheme" = "default" ]; then scheme=$(cat default); fi
-          if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then 
-            filetype_parameter="workspace" && file_to_build="`ls -A | grep -i \\.xcworkspace\$`"; 
+          if ls *.xcworkspace 1> /dev/null 2>&1; then 
+            filetype_parameter="workspace" 
+            file_to_build=$(ls *.xcworkspace)
           else 
-            filetype_parameter="project" && file_to_build="`ls -A | grep -i \\.xcodeproj\$`"; 
+            filetype_parameter="project" 
+            file_to_build=$(ls *.xcodeproj)
           fi
-          file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
           
           echo "File to build: $file_to_build"
           
@@ -59,3 +63,5 @@ jobs:
           name: build-artifacts
           path: |
             ~/Library/Developer/Xcode/DerivedData/**/Build/Products/**/*.app
+            ~/Library/Developer/Xcode/DerivedData/**/Build/Products/**/*.framework
+            ~/Library/Developer/Xcode/DerivedData/**/Build/Products/**/*.dSYM
