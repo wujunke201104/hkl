@@ -1,77 +1,34 @@
-name: Xcode - Build and Analyze
+name: Build .dylib
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    branches:
+      - master  # 触发构建的分支
 
 jobs:
   build:
-    name: Build and Analyze dylib using xcodebuild
-    runs-on: macos-latest
+    runs-on: macOS-latest  # 使用 macOS 环境构建
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-      - name: Install xcpretty
-        run: |
-          sudo gem install xcpretty  # 安装 xcpretty
-
-      - name: Set Scheme
-        id: set_scheme
-        run: |
-          schemes=$(xcodebuild -list -json | jq -r '.project.schemes[]')
-          scheme=$(echo "$schemes" | grep 'Dylib' | head -n 1)
-          if [ -z "$scheme" ]; then
-            echo "No suitable scheme found."
-            exit 1
-          fi
-          echo "scheme=$scheme" >> $GITHUB_ENV
-          echo "Using scheme: $scheme"
-
-      - name: Build
-        env:
-          scheme: ${{ env.scheme }}
-        run: |
-          echo "Current directory contents:"
-          ls -la
-
-          # 确定项目类型
-          if [ -n "$(ls *.xcworkspace 2>/dev/null)" ]; then
-            workspace=$(ls *.xcworkspace)
-            filetype_parameter="-workspace"
-            file_to_build="$workspace"
-          elif [ -n "$(ls *.xcodeproj 2>/dev/null)" ]; then
-            project=$(ls *.xcodeproj)
-            filetype_parameter="-project"
-            file_to_build="$project"
-          else
-            echo "No .xcworkspace or .xcodeproj file found."
-            exit 1
-          fi
-
-          echo "File to build: $file_to_build"
-          echo "Using scheme: $scheme"
-
-          # 清理、构建并分析
-          xcodebuild clean build analyze \
-            -scheme "$scheme" \
-            $filetype_parameter "$file_to_build" \
-            -configuration Release \
-            | xcpretty
-
-          # 查找生成的 .dylib 文件
-          dylib_path=$(find . -name "*.dylib" | head -n 1)
-          if [ -z "$dylib_path" ]; then
-            echo "No .dylib file found after build."
-            exit 1
-          fi
-          echo "dylib_path=$dylib_path" >> $GITHUB_ENV
-
-      - name: Upload .dylib Artifact
-        uses: actions/upload-artifact@v3
+      - name: Set up Xcode
+        uses: actions/setup-xcode@v2
         with:
-          name: my-dylib
-          path: ${{ env.dylib_path }}
+          xcode-version: 'latest'  # 使用最新版本的 Xcode
+
+      - name: Compile .dylib
+        run: |
+          set -e  # 在任何命令失败时终止构建
+          # 使用 find 命令寻找 .mm, .m 和 .cpp 文件
+          source_files=$(find src -name '*.mm' -o -name '*.m' -o -name '*.cpp')
+          
+          # 编译动态库
+          clang++ -dynamiclib -o libmylibrary.dylib $source_files -Iinclude -fobjc-arc
+          
+      - name: Upload .dylib
+        uses: actions/upload-artifact@v2
+        with:
+          name: mylibrary
+          path: libmylibrary.dylib
