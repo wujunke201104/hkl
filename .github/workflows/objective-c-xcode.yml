@@ -15,10 +15,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Dependencies
+      - name: Install xcpretty
         run: |
-          sudo gem install cocoapods xcpretty
-          pod install  # 如果使用 CocoaPods
+          sudo gem install xcpretty  # 安装 xcpretty
 
       - name: Set Scheme
         id: set_scheme
@@ -39,7 +38,7 @@ jobs:
           echo "Current directory contents:"
           ls -la
 
-          # Determine project type
+          # 确定项目类型
           if [ -n "$(ls *.xcworkspace 2>/dev/null)" ]; then
             workspace=$(ls *.xcworkspace)
             filetype_parameter="-workspace"
@@ -56,14 +55,14 @@ jobs:
           echo "File to build: $file_to_build"
           echo "Using scheme: $scheme"
 
-          # Clean, build, and analyze
+          # 清理、构建并分析
           xcodebuild clean build analyze \
             -scheme "$scheme" \
             $filetype_parameter "$file_to_build" \
             -configuration Release \
             | xcpretty
 
-          # Locate the .dylib file
+          # 查找生成的 .dylib 文件
           dylib_path=$(find . -name "*.dylib" | head -n 1)
           if [ -z "$dylib_path" ]; then
             echo "No .dylib file found after build."
