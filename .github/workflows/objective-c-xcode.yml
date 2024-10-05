@@ -27,9 +27,7 @@ jobs:
           echo "scheme=$default" >> $GITHUB_ENV  # 输出到环境变量
           echo "Using default scheme: $default"
 
-      - name: Install CocoaPods
-        run: |
-          pod install  # 如果使用 CocoaPods，安装依赖
+    
 
       - name: Build
         env:
